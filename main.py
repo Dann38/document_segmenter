@@ -1,49 +1,52 @@
 import os
 import matplotlib.pyplot as plt
-from utils.tesseract_reader.image_reader.image_reader import ImageReader
-from utils.tesseract_reader.tesseract_reader.tesseract_reader import TesseractReader, TesseractReaderConfig
+from matplotlib.patches import Rectangle
 
-from utils.delone_binder.delone_binder.delone_binder import DeloneBinder, Node, Edge
+from document_segmenter.document.document import Document
+from document_segmenter.segmentor.graph_segmentor.graph_segmentor import GraphSegmentor
 
 
 # Image path /example_img/g03.jpeg
 path_project = os.path.abspath(os.path.join(os.getcwd(), "."))
-path_img = os.path.join(path_project, 'example_img', "b01.jpeg")
+path_img = os.path.join(path_project, 'example_img', "g03.jpeg")
 
+doc = Document(path_img)
+graph_segmentor = GraphSegmentor(threshold=40)
 # Objects
-image_reader = ImageReader()
-tesseract_config = TesseractReaderConfig()
-tesseract_reader = TesseractReader(tesseract_config)
-delone_binder = DeloneBinder()
 
+list_seg = graph_segmentor.segmentation(doc)
 
-img = image_reader.read(path_img)
-bboxes = tesseract_reader.read(img)
-points = []
-for bbox in bboxes:
-    y = round(bbox.y_top_left + bbox.height/2)
-    points.append(Node(bbox.x_top_left, y))
-    points.append(Node(bbox.x_top_left+bbox.width, y))
+plt.imshow(doc.img)
+color = ["g", "y", "k", "r"]
+for i, seg in enumerate(list_seg):
+    for node in seg.graph.get_nodes():
+        plt.plot(node.x, node.y, "b.")
 
-edges, triangles = delone_binder.bind(points)
+for i, seg in enumerate(list_seg):
+    for edge in seg.graph.get_edges():
+        x, y = edge.get_line()
+        plt.plot(x, y, color[i%3])
 
-plt.imshow(img)
-
-new_edges  = []
-for edge in edges:
-    if edge.width < 252:
-        new_edges.append(edge)
-
-for i in range(len(bboxes)):
-    new_edges.append(Edge(points[2*i], points[2*i+1]))
-
-for edge in new_edges:
-    x, y = edge.get_lines()
-    plt.plot(x, y, "b")
-    plt.plot(x, y, "ro")
+for seg in list_seg:
+    left_top, right_bottom = seg.get_region()
+    width = right_bottom[0] - left_top[0] + 20
+    height = right_bottom[1] - left_top[1] + 20
+    left_top = (left_top[0] - 4, left_top[1] - 4)
+    plt.gca().add_patch(Rectangle(left_top, width, height,
+                                  edgecolor='red',
+                                  facecolor='none',
+                                  lw=2))
 plt.show()
 
+#
+# # ЕDGE_WIDTH
 # h_edges = [edge.width for edge in edges]
 # print(len(edges))
 # plt.hist(h_edges, bins=200)
+# plt.show()
+
+# # TRIANGLE AREA
+# a_tr = [triangle.area for triangle in triangles]
+# print(len(a_tr))
+# plt.hist(a_tr, bins=100)
 # plt.show()
